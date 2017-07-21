@@ -142,7 +142,7 @@ def calculateSimilarItems(prefs, n=10):
         if c % 100 == 0: print("%d / %d" % (c, len(itemPrefs)))
         # Find the most similar items to this one
         scores = topMatches(itemPrefs, item, n=n, similarity=sim_pearson)
-        print("scores",scores)
+        # print("scores",scores)
 
         result[item] = scores
     return result
@@ -154,7 +154,6 @@ def getRecommendedItems(prefs, itemMatch, user):
     totalSim = {}
     # Loop over items rated by this user
     for (item, rating) in userRatings.items():
-
         # Loop over items similar to this one
         for (similarity, item2) in itemMatch[item]:
 
@@ -191,8 +190,18 @@ def loadMovieLens(path='/data/movielens'):
         prefs[user][movies[movieid]] = float(rating)
     return prefs
 
-
+def SaveModelFiles(df,filename):
+    try:
+        with open(filename,'w') as df_file:
+            print(df,file=df_file)
+            df_file.close()
+            print("write in !")
+    except IOError:
+        print("file error")
 
 if __name__ == '__main__':
-    print(calculateSimilarItems(critics,10))
+    itemMatch = calculateSimilarItems(critics,10)
+    print(getRecommendedItems(critics,itemMatch,'Claudia Puig'))
+    SaveModelFiles(itemMatch,"itemMatch.txt")
+
 

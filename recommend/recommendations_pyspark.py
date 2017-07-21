@@ -37,6 +37,9 @@ from math import *
 from pyspark.sql import SparkSession
 from pandas import DataFrame
 from scipy.stats.stats import pearsonr
+from multiprocessing.pool import ThreadPool
+
+class KKL_Recommend(object):
 
 
 def sim_pearson(df, col1, col2, col3, p1, p2):
