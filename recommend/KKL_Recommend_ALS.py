@@ -28,7 +28,6 @@ from multiprocessing.pool import ThreadPool
 
 spark = SparkSession.builder.enableHiveSupport().getOrCreate()
 sc = spark.sparkContext
-bizdate = str(date.today() - timedelta(days=1))
 
 class KKL_Similar(object):
     def __init__(self,df,col1, col2, col3,simNum,proNum,saveModel = False):
@@ -217,7 +216,7 @@ class KKL_Recommend(object):
             result_col3.registerTempTable("modelDF")
             if  result_col3.count()>3:
                 spark.sql("insert  " + ("overwrite table" if col3_==self.col3_list[0] else "into") +
-                """ tmp.tmp_kkl_model_ALS
+                """ dm.dm_kkl_model_ALS
                 select uid,productid,ratingName,rating,grade,subjectId
                 from modelDF
                 where uid> 0 
@@ -227,7 +226,7 @@ class KKL_Recommend(object):
     def getRecommendedALS(self):
         try:
             df = spark.sql("""
-            insert overwrite table  tmp.tmp_kkl_model_recommend_first
+            insert overwrite table  dm.dm_kkl_model_recommend_first
             select 
             ma.uid,ma.productid,ma.grade,ma.subjectId
             ,nvl(sum(ma.completeRating),0) as completeRating
@@ -238,7 +237,7 @@ class KKL_Recommend(object):
                 ,case when ma.ratingName = 'completion' then ma.rating end completeRating
                 ,case when ma.ratingName = 'iscomment' then ma.rating end commentRating
                 ,case when ma.ratingName = 'stars' then ma.rating end starsRating
-                from tmp.tmp_kkl_model_ALS  ma
+                from dm.dm_kkl_model_ALS  ma
                 where not exists (select rb.uid,rb.productid 
                     from kkl_dw.dw_kkl_recommend_base_f_1d  rb 
                     where rb.uid = ma.uid   and ma.productid = rb.productid   
@@ -255,10 +254,11 @@ class KKL_Recommend(object):
 
 
 if __name__ == '__main__':
+    bizdate = str(date.today() - timedelta(days=1))
     col1 = 'uid'
     col2 = 'productid'
     col3_list = ['completion', 'stars']
-    predictDF = spark.sql("""select distinct t.uid,t.productid,concat(grade,"_",subjectId) identical  from tmp.tmp_kkl_model_recommend_predict t """)
+    predictDF = spark.sql("""select distinct t.uid,t.productid,concat(grade,"_",subjectId) identical  from dm.dm_kkl_model_recommend_predict t """)
     Rec_KKL_ = KKL_Recommend( col1, col2, col3_list, simNum=10, proNum=20, saveModel=True)
     Rec_KKL_.runFuncALS()
     # Rec_KKL_.getRecommendedALS()

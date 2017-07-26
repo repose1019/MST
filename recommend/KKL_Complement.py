@@ -14,21 +14,21 @@ class KKL_complement(object):
         :return: 根据用户近期行为,做出相应的科目推荐调整
         """
         sql_text =            """
-            insert overwrite table tmp.tmp_kkl_model_recommend_third
+            insert overwrite table dm.dm_kkl_model_recommend_third
             select rf.uid,rf.productid,rf.grade,rf.subjectId,rf.completeRating,rf.commentRating,rf.starsRating,rf.rankNumber
-            from tmp.tmp_kkl_model_recommend_first rf
+            from dm.dm_kkl_model_recommend_first rf
             join(
                 select
                 r.uid
                 ,r.grade
                 ,r.subjectId
                 ,ceil(r.productrate / total.productrate * """ + str(self.simNum) + """)  proportion
-                from tmp.tmp_kkl_model_recommend_second  r
+                from dm.dm_kkl_model_recommend_second  r
                 join (
                     select 
                     t.uid
                     ,sum(productrate)  productrate
-                    from tmp.tmp_kkl_model_recommend_second t
+                    from dm.dm_kkl_model_recommend_second t
                     group by t.uid
                     ) total
                 on r.uid = total.uid
@@ -65,7 +65,7 @@ class KKL_complement(object):
         # 无近期行为满足条件的会员
         successUID_public = spark.sql("""
         select uid,count(distinct productid) productNum
-        from tmp.tmp_kkl_model_recommend_first
+        from dm.dm_kkl_model_recommend_first
         group by uid
         having count(distinct productid) >= """+str(self.simNum)+"""
         """)
@@ -73,7 +73,7 @@ class KKL_complement(object):
         # 有近期行为满足条件的会员
         successUID_recent = spark.sql("""
         select uid,count(distinct productid) productNum
-        from tmp.tmp_kkl_model_recommend_third
+        from dm.dm_kkl_model_recommend_third
         group by uid
         having count(distinct productid) >= """+str(self.simNum)+"""
         """)
@@ -83,7 +83,7 @@ class KKL_complement(object):
         insert overwrite table kkl_dw.dw_kkl_recommend_rating_f_1d partition(day= '""" + bizdate + """')
         select distinct
         rf.uid,rf.productid,rf.grade,rf.subjectId,rf.completeRating,rf.commentRating,rf.starsRating,rf.rankNumber
-        from tmp.tmp_kkl_model_recommend_third rf
+        from dm.dm_kkl_model_recommend_third rf
         join successUID_recent s
         on rf.uid = s.uid
         """)
@@ -93,10 +93,10 @@ class KKL_complement(object):
             insert into kkl_dw.dw_kkl_recommend_rating_f_1d partition(day= '""" + bizdate + """')
             select distinct
             rf.uid ,rf.productId,rf.grade,rf.subjectId,rf.completeRating,rf.commentRating,rf.starsRating,rf.ranknumber
-            from tmp.tmp_kkl_model_recommend_first rf
+            from dm.dm_kkl_model_recommend_first rf
             join successUID_public s
             on s.uid = rf.uid
-            where not exists( select th.uid from tmp.tmp_kkl_model_recommend_third th
+            where not exists( select th.uid from dm.dm_kkl_model_recommend_third th
                 where th.uid = rf.uid)
         """)
         print("2 is ok")
@@ -115,20 +115,20 @@ class KKL_complement(object):
         #     ,coalesce(o.rankNumber,"""+str(self.simNum)+"""+g.rankNum) as rankNumber
         #     from (
         #         select th.uid ,th.productId,th.grade,th.subjectId,th.completeRating,th.commentRating,th.starsRating,th.rankNumber
-        #         from tmp.tmp_kkl_model_recommend_third th
+        #         from dm.dm_kkl_model_recommend_third th
         #         where not exists(select s.uid from successUID_recent s where s.uid = th.uid)
         #
         #         union all
         #
         #         select rf.uid ,rf.productId,rf.grade,rf.subjectId,rf.completeRating,rf.commentRating,rf.starsRating,rf.rankNumber
-        #         from tmp.tmp_kkl_model_recommend_first rf
-        #         where not exists( select th.uid from tmp.tmp_kkl_model_recommend_third th
+        #         from dm.dm_kkl_model_recommend_first rf
+        #         where not exists( select th.uid from dm.dm_kkl_model_recommend_third th
         #             where th.uid = rf.uid)
         #         and not exists( select s.uid  from successUID_public s where s.uid = rf.uid)
         #     ) as o
         #     join  gradeProductRank g
         #     on g.grade = o.grade
-        #     join tmp.tmp_kkl_model_recommend_predict p
+        #     join dm.dm_kkl_model_recommend_predict p
         #     on p.uid = o.uid
         #     where g.rankNum <= """+str(self.simNum)+"""
         #     and g.productId != o.productId
@@ -136,18 +136,18 @@ class KKL_complement(object):
         #     """
 
         recentDF_text = """
-        insert overwrite table tmp.tmp_kkl_model_recommend_fourth
+        insert overwrite table dm.dm_kkl_model_recommend_fourth
         select distinct
         th.uid ,th.productId,th.grade,th.subjectId,th.completeRating,th.commentRating,th.starsRating,th.rankNumber
-        from tmp.tmp_kkl_model_recommend_third th
+        from dm.dm_kkl_model_recommend_third th
         where not exists(select s.uid from successUID_recent s where s.uid = th.uid)
 
         union all 
         
         select distinct
         rf.uid ,rf.productId,rf.grade,rf.subjectId,rf.completeRating,rf.commentRating,rf.starsRating,rf.rankNumber
-        from tmp.tmp_kkl_model_recommend_first rf
-        where not exists( select th.uid from tmp.tmp_kkl_model_recommend_third th 
+        from dm.dm_kkl_model_recommend_first rf
+        where not exists( select th.uid from dm.dm_kkl_model_recommend_third th 
             where th.uid = rf.uid)  
         and not exists( select s.uid  from successUID_public s where s.uid = rf.uid)    
         
